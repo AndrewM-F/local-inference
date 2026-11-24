@@ -1,0 +1,25 @@
+# local configuration and secrets
+config/inference.env
+*.key
+secrets/
+
+# model weights and native runtimes (large, per-machine)
+models/
+bin/
+cache/
+bench/
+logs/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+services/*-venv/
+
+# archives and scratch
+*.zip
+*.tar.gz
+*.whl
+*.webm
+*.wav

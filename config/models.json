@@ -1,0 +1,89 @@
+# Models, ports and resource budgets.
+#
+# Every `path` is relative to INFERENCE_ROOT. Nothing here is machine specific:
+# adjust ports/budgets to match your hardware and set INFERENCE_ROOT in
+# config/inference.env (see docs/configuration.md).
+{
+  "gateway": {
+    "bindEnv": "INFERENCE_BIND",
+    "portEnv": "INFERENCE_PORT",
+    "auth": "bearer"
+  },
+  "runtimes": {
+    "llama-vulkan": "bin/llama-vulkan",
+    "llama-sycl": "bin/llama-sycl",
+    "transcribe": "bin/transcribe",
+    "sd": "bin/sd",
+    "breeze-tts": "bin/breeze-tts",
+    "crispasr": "services/crispasr-venv"
+  },
+  "services": {
+    "embeddings": {
+      "role": "embeddings",
+      "runtime": "llama-vulkan",
+      "model": "models/embeddinggemma-2-Q8_0.gguf",
+      "source": "google/embeddinggemma-2",
+      "port": 8081,
+      "resident": true,
+      "ngl": 99,
+      "ctx": 2048,
+      "extra_args": ["--embedding", "--pooling", "mean"],
+      "why": "prefill-heavy workload: Vulkan measured ~1.8x faster than SYCL here"
+    },
+    "rerank": {
+      "role": "rerank",
+      "runtime": "openvino",
+      "model": "models/ettin-reranker-400m-v1/openvino/openvino_model.xml",
+      "source": "cross-encoder/ettin-reranker-400m-v1",
+      "port": 8082,
+      "resident": true,
+      "why": "ModernBERT cross-encoder; the community GGUF does not load in llama.cpp, so OpenVINO runs it"
+    },
+    "asr": {
+      "role": "asr",
+      "runtime": "transcribe",
+      "model": "models/parakeet-unified-en-0.6b-Q8_0.gguf",
+      "source": "handy-computer/parakeet-unified-en-0.6b-gguf",
+      "port": 8083,
+      "resident": true,
+      "vram_mb": 1024
+    },
+    "tts-breeze": {
+      "role": "tts",
+      "runtime": "breeze-tts",
+      "model": "models/breeze-tts-2-q8_0.gguf",
+      "source": "HoppouAI/Breeze-TTS-2.cpp",
+      "port": 8084,
+      "resident": true,
+      "exclusive_group": "tts",
+      "why": "voice-cloning TTS; needs a reference clip (see docs/architecture.md)"
+    },
+    "tts-voxcpm": {
+      "role": "tts",
+      "runtime": "crispasr",
+      "model": "models/voxcpm2-q8_0-locdit-f16.gguf",
+      "source": "cstr/voxcpm2-GGUF",
+      "port": 8086,
+      "resident": true,
+      "exclusive_group": "tts",
+      "why": "4-6 CFM steps is the quality/speed knee; 2 steps degenerates"
+    },
+    "classifier": {
+      "role": "classifier",
+      "runtime": "hosted",
+      "model": "jev-latest",
+      "hosted": "https://api.typesafe.ai/v1/systemone",
+      "why": "TypeSafe decision model, not a chat model; needs TYPESAFE_API_KEY"
+    },
+    "video": {
+      "role": "video",
+      "runtime": "sd",
+      "model": "models/minimax_h3_fl2va_pruned-Q4_K.gguf",
+      "source": "unsloth/MiniMax-H3-GGUF",
+      "port": 8090,
+      "resident": false,
+      "idle_stop_seconds": 300,
+      "why": "on demand: denoiser + int8 VAE peak ~14 GiB; text encoder must run on CPU"
+    }
+  }
+}
